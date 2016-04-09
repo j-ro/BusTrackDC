@@ -35,7 +35,7 @@ This app is built using the Cordova CLI. To build, first install the CLI, then i
 * cordova.plugins.diagnostic
 * ionic-plugin-keyboard
 
-Copy the contents of the /www folder in this repository into your app's local /www directory. Copy the contents of config.xml file into your project's config.xml (though you'll have to change the package name and things like that).
+Copy the contents of the BusTrackDC/www folder in this repository into your app's local /www directory. Copy the contents of config.xml file into your project's config.xml (though you'll have to change the package name and things like that).
 
 Finally, use Cordova's build command to build the app, using the www folder in this repository.
 
