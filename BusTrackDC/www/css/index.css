@@ -692,6 +692,6 @@ body {
 
 }
 
-#yellow .ui-li-count span, #green .ui-li-count span, #gtownpm .ui-li-count span, #rosslyn .ui-li-count span, #blue .ui-li-count span, #potomac .ui-li-count span, #mall .ui-li-count span {
+#yellow .ui-li-count span, #green .ui-li-count span, #gtownpm .ui-li-count span, #rosslyn .ui-li-count span, #blue .ui-li-count span, #potomac .ui-li-count span, #mall .ui-li-count span, #h_route .ui-li-count span {
 	display: none;
 }

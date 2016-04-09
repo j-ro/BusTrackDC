@@ -9,7 +9,8 @@
 			diameter: 400,
 			atBottom: true,
 			lat: 38.8897,
-			lon: -77.0089
+			lon: -77.0089,
+			zoomLevel: 0
 		};
 
 		this.mapType = {
@@ -65,6 +66,9 @@
 			//console.log(options);
 			
 			if (options) {
+				if (!options.zoomLevel) {
+					options.zoomLevel = 0;
+				}
 				cordovaRef.exec(success, error, 'MapKit', 'setMapData', [options]);
 			} else {
 				cordovaRef.exec(success, error, 'MapKit', 'setMapData', [this.options]);
