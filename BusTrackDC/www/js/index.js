@@ -1282,6 +1282,8 @@ getCirculatorStops = function(latitude,longitude,radius) {
 				    	object2.route = circulatorStopsArrayObject.route.tag;
 				    
 				    	circulatorStops.push(object2);
+				    	
+				    	//console.log(circulatorStops);
 			    
 				    	window.localStorage.setItem("circulatorStops", JSON.stringify(circulatorStops));
 				    	
@@ -3291,11 +3293,13 @@ latPlusDelta = parseFloat(latitude) + parseFloat(latitudeDelta);
 						//console.log('pins');
 						//console.log(object);
 						
-						if (object.route = 'h_route') {
+						if (object.route == 'h_route') {
 							var type = "Streetcar";
 						} else {
 							var type = "Circulator";
 						}
+						
+						//console.log(type + ' Stop #' + object.route + '|' + object.tag);
 						
 						pins.push(
 							{
@@ -4127,16 +4131,9 @@ function zoomIn() {
 
 function onDeviceReady() {
 	//console.log('ready');
+	permissions_ran_flag = false;
 	
-	if (device.platform == "iOS") {
-		cordova.plugins.diagnostic.registerLocationAuthorizationStatusChangeHandler(function(status) {
-			if(status == "GRANTED" || status == "authorized_when_in_use" || status == "authorized_always"){
-	                    //requestLocation();  
-	                    device_permissions_granted();
-	        }
-		});
-	}
-
+	
 	
 	cordova.plugins.diagnostic.getLocationAuthorizationStatus(function(status){
 		//console.log(status);
@@ -4144,9 +4141,25 @@ function onDeviceReady() {
 	        //requestLocation();
 	        device_permissions_granted();
 	    }else{
+		    //console.log('else');
+		    if (device.platform == "iOS") {
+				permission_interval = setInterval(function() {
+					cordova.plugins.diagnostic.getLocationAuthorizationStatus(function(status){
+						//console.log(status);
+					    if(status == "GRANTED" || status == "authorized_when_in_use" || status == "authorized_always"){
+					        //requestLocation();
+					        clearInterval(permission_interval);
+					        device_permissions_granted();
+					        
+					    }
+					});
+				}, 100);
+			}
+		    
 	        cordova.plugins.diagnostic.requestLocationAuthorization(function(status){
+		        //console.log('request');
 		        //console.log(status);
-	                if(status == "GRANTED" || status == "authorized_when_in_use" || status == "authorized_always"){
+	                if(status == "GRANTED" || status == "authorized_when_in_use" || status == "authorized_always" && device.platform != "iOS"){
 	                    //requestLocation();  
 	                    device_permissions_granted();
 	                }else{
@@ -4161,564 +4174,581 @@ function onDeviceReady() {
 	        });
 	    }
 	});
+	
+	
 }
 
 function device_permissions_granted() {
 	
-	//console.log('permissions');
-	window.onerror = function(message, url, lineNumber) {
-        console.log("Error: "+message+" in "+url+" at line "+lineNumber);
-    }
-    
-    //direction place predictions
-	prediction_service = new google.maps.places.AutocompleteService();
-	directionsService = '';
-	
-	
-	
-	window.addEventListener('load', function() {
-	    new FastClick(document.body);
-	}, false);
-	
-	// put this here for android, does that work on iOS?
-	geo = window.geo || {};
-	geo.onMapMove = {};
-	
-	
+	if (!permissions_ran_flag) {
 
-//$(document).on('touchmove', function (ev) {ev.preventDefault();});
-
-/*
-$('input').on('focus', function(){
-    $('.header').css({position:'absolute'});
-    $('.footer').css({position:'absolute'});
-    $(window).scrollTop(0);    
-});
-$('input').on('blur', function(){
-    $('.header').css({position:'fixed'});
-    $('.footer').css({position:'fixed'});
-});
-*/
-	// Track basic JavaScript errors
 	
-	// Track AJAX errors (jQuery API)
-	$(document).ajaxError(function(e, request, settings, thrownError) {
-		ga_storage._trackEvent('Ajax error', settings.url, "Status: " + request.status + ", Status Text: " + request.statusText + ", Response Text: " + request.responseText + ", Error Thrown: " + thrownError + ", Headers: " + request.getAllResponseHeaders());
-	});
-
-	gmaps_directions_initialize();
-	
-	
-	
-	cordova.plugins.Keyboard.hideKeyboardAccessoryBar(true);
-	
-	$('form').submit(function() {
-		if ($(this).attr('id') == 'directions_form') {
-			if ($('#directions_start_wrap .filter').val() != '' && $('#directions_end_wrap .filter').val() != '') {
-				cordova.plugins.Keyboard.close();
-				
-				$('#directions_start_wrap .filter, #directions_end_wrap .filter').blur();
-				
-				if (typeof(directions_routes_scroll) == 'undefined') {
-					directions_routes_scroll = new IScroll('#directions_routes', {useTransition: true, scrollbars: true, 
-				mouseWheel:false,
-				fadeScrollbars:true,
-				interactiveScrollbars:false });
-				}
-				
-				get_directions($('#directions_start_wrap .filter').val(), $('#directions_end_wrap .filter').val());
-			} else if ($('#directions_start_wrap .filter').val() == '') {
-				$('#directions_start_wrap .filter').focus();
-				cordova.plugins.Keyboard.show();
-			} else {
-				$('#directions_end_wrap .filter').focus();
-				cordova.plugins.Keyboard.show();
-			}
-		} else {
-			cordova.plugins.Keyboard.close();
-		}
+		//console.log('permissions');
+		window.onerror = function(message, url, lineNumber) {
+	        console.log("Error: "+message+" in "+url+" at line "+lineNumber);
+	    }
+	    
+	    //direction place predictions
+		prediction_service = new google.maps.places.AutocompleteService();
+		directionsService = '';
 		
-		return false;
-	});
-	
-	// from here for scrolling divs on older android: http://chris-barr.com/2010/05/scrolling_a_overflowauto_element_on_a_touch_screen_device/
-	if (device.platform != "iOS" && parseInt(device.version) < 3) {
-		isTouchDevice = function(){
-			try{
-				document.createEvent("TouchEvent");
-				return true;
-			}catch(e){
-				return false;
-			}
-		}
 		
-		touchScroll = function(id){
-			if(isTouchDevice()){ //if touch events exist...
-				var el=document.getElementById(id);
-				var scrollStartPos=0;
-		 
-				document.getElementById(id).addEventListener("touchstart", function(event) {
-					scrollStartPos=this.scrollTop+event.touches[0].pageY;
-					event.preventDefault();
-				},false);
-		 
-				document.getElementById(id).addEventListener("touchmove", function(event) {
-					this.scrollTop=scrollStartPos-event.touches[0].pageY;
-					event.preventDefault();
-				},false);
-			}
-		}
-	}
-	
-	
-	if (device.platform == "iOS" && parseInt(device.version) < 7) {
-		$('body').addClass(device.platform).addClass(device.platform + device.version).addClass('iOS6_or_lower');
-	} else {
-		$('body').addClass(device.platform).addClass(device.platform + device.version);
-	}
-
-	$(document).on('touchmove', function (ev) {
-		//console.log($(ev.target));
-        if (!$(ev.target).parents('ul').hasClass('scroll')) {
-        	//console.log('div!');
-            ev.preventDefault();
-        }
-    });
-    
-    //console.log('flag');
-
-	homePage = $("#gps_map"),
-	currentPage = homePage,
-	pageHistory = [],
-	pageInitHistory = [],
-	global_pin_index = 0,
-	mapVisible = true;
-	
-	currentPage.css('display','block');
-	
-	currentPage.trigger({
-		type: "pagebeforeshow"
-	});
-	
-	currentPage.trigger({
-		type: "pageshow"
-	});
-	
-	currentPage.trigger({
-		type: "pageinit"
-	});
-	
-	pageInitHistory.push(currentPage.attr('id'));
-	
-	// set transition navigation flag that locks buttons until the page transition is finished
-    transitionNavigationFlag = false;
-    
-	$('.icon').click(function(e) {
-		e.preventDefault();
 		
-		if (!transitionNavigationFlag) {
-			if ($(this).attr('href') != '#' && $(this).attr('href') != '#back') {
-			
-				if ($(this).attr('href') != $(currentPage).attr('id')) {
-					pageHistory.push('#' + currentPage.attr('id'));
-				}
-				
-				if ($(this).attr('href') != '#gps_map') {
-					slidePageFrom($(this).attr('href'), 'right'); 
-				} else {
-					slidePageFrom($(this).attr('href'), 'left'); 
-				}
-			
-			} else if ($(this).attr('href') == '#back') {
-				
-				slidePageFrom(pageHistory[pageHistory.length - 1], 'left'); 
-				
-				if (pageHistory[pageHistory.length - 1] != $(currentPage).attr('id')) {
-					pageHistory.pop();
-				}
-			}
-		}
-	});
-	
-	
-	// pull to refresh from http://cubiq.org/dropbox/iscroll4/examples/pull-to-refresh/
-
-/*
-	pullDownEl = document.getElementById('pullDown');
-	pullDownOffset = $(pullDownEl).outerHeight();
-	var scroll_in_progress = false;
-*/
-	
-	function pullDownAction(theScroller) {	
-		$('#pullDown').removeClass('scrolledUp');		
-				refreshStopID = $('.stopTitle').attr('id');
-				//console.log(refreshStopID);
-				annotationTap(refreshStopID); 
-			}
-
-	
-	//myScrollInit = function() {
-		var IScrollPullUpDown = function (wrapperName,iScrollConfig,pullDownActionHandler) {
-				var iScrollConfig,pullDownActionHandler,pullDownEl,pullDownOffset,scrollStartPos;
-				var pullThreshold=35;
-				me=this;
-			
-				function showPullDownElNow(className) {
-					// Shows pullDownEl with a given className
-					pullDownEl.style.transitionDuration='';
-					pullDownEl.style.marginTop='';
-					pullDownEl.className = 'pullDown '+className;
-				}
-				var hidePullDownEl = function (time,refresh) {
-					// Hides pullDownEl
-					pullDownEl.style.transitionDuration=(time>0?time+'ms':'');
-					pullDownEl.style.marginTop='';
-					pullDownEl.className = 'pullDown scrolledUp';
-			
-					// If refresh==true, refresh again after time+10 ms to update iScroll's "scroller.offsetHeight" after the pull-down-bar is really hidden...
-					// Don't refresh when the user is still dragging, as this will cause the content to jump (i.e. don't refresh while dragging)
-					if (refresh) setTimeout(function(){me.myScroll.refresh();},time+10);
-				}
-			
-				function init() {
-					var wrapperObj = document.querySelector('#'+wrapperName);
-					var scrollerObj = wrapperObj.children[0];
-			
-					if (pullDownActionHandler) {
-						// If a pullDownActionHandler-function is supplied, add a pull-down bar at the top and enable pull-down-to-refresh.
-						// (if pullDownActionHandler==null this iScroll will have no pull-down-functionality)
-						pullDownEl=document.createElement('div');
-						pullDownEl.className='pullDown scrolledUp';
-						pullDownEl.id='pullDown';
-						pullDownEl.innerHTML='<span class="pullDownIcon icon-angle-down center full"></span>';
-						scrollerObj.insertBefore(pullDownEl, scrollerObj.firstChild);
-						//pullDownEl = document.querySelector('#'+wrapperName + '.pullDown')
-						pullDownOffset = pullDownEl.offsetHeight;
-					}
-			
-					me.myScroll = new IScroll(wrapperObj,iScrollConfig);
-			
-					me.myScroll.on('refresh',function() {
-						if ((pullDownEl)&&(pullDownEl.className.match('loading'))) {
-							//pullDownEl.querySelector('.pullDownLabel').innerHTML = 'Pull down to refresh...';
-							if (this.y>=0) {
-								// The pull-down-bar is fully visible:
-								// Hide it with a simple 250ms animation
-								hidePullDownEl(250,true);
-			
-							} else if (this.y>-pullDownOffset) {
-								// The pull-down-bar is PARTLY visible:
-								// Set up a shorter animation to hide it
-			
-								// Firt calculate a new margin-top for pullDownEl that matches the current scroll position
-								pullDownEl.style.marginTop=this.y+'px';
-			
-								// CSS-trick to force webkit to render/update any CSS-changes immediately: Access the offsetHeight property...
-								pullDownEl.offsetHeight;
-			
-								// Calculate the animation time (shorter, dependant on the new distance to animate) from here to completely 'scrolledUp' (hidden)
-								// Needs to be done before adjusting the scroll-positon (if we want to read this.y)
-								var animTime=(250*(pullDownOffset+this.y)/pullDownOffset);
-			
-								// Set scroll positon to top
-								// (this is the same as adjusting the scroll postition to match the exact movement pullDownEl made due to the change of margin-top above, so the content will not "jump")
-								this.scrollTo(0,0,0);
-			
-								// Hide pullDownEl with the new (shorter) animation (and reset the inline style again).
-								setTimeout(function() {	// Do this in a new thread to avoid glitches in iOS webkit (will make sure the immediate margin-top change above is rendered)...
-									hidePullDownEl(animTime,true);
-								},0);
-			
-							} else {
-								// The pull-down-bar is completely off screen:
-								// Hide it immediately
-								hidePullDownEl(0,true);
-								// And adjust the scroll postition to match the exact movement pullDownEl made due to change of margin-top above, so the content will not "jump"
-								this.scrollBy(0,pullDownOffset,0);
-							}
-						}
-					});
-			
-					me.myScroll.on('scrollStart',function() {
-						scrollStartPos=this.y; // Store the scroll starting point to be able to track movement in 'scroll' below
-					});
-						
-					me.myScroll.on('scroll',function() {
-						if (pullDownEl) {
-							if((scrollStartPos==0)&&(this.y==0)) {
-								// 'scroll' called, but scroller is not moving!
-								// Probably because the content inside wrapper is small and fits the screen, so drag/scroll is disabled by iScroll
-								
-								// Fix this by a hack: Setting "myScroll.hasVerticalScroll=true" tricks iScroll to believe
-								// that there is a vertical scrollbar, and iScroll will enable dragging/scrolling again...
-								this.hasVerticalScroll=true;
-								
-								// Set scrollStartPos to -1000 to be able to detect this state later...
-								scrollStartPos=-1000;
-							} else if ((scrollStartPos==-1000) && 
-								         (((!pullDownEl.className.match('flip'))&&(this.y<0)) ||
-												  ((!pullDownEl)&&(this.y>0)))) {
-								// Scroller was not moving at first (and the trick above was applied), but now it's moving in the wrong direction.
-								// I.e. the user is either scrolling up while having no "pull-up-bar",
-								// or scrolling down while having no "pull-down-bar" => Disable the trick again and reset values...
-								this.hasVerticalScroll=false;
-								scrollStartPos=0;
-								this.scrollBy(0,-this.y, 0);	// Adjust scrolling position to undo this "invalid" movement
-							}
-						}
-				
-						if (pullDownEl) {
-							if (this.y > pullDownOffset+pullThreshold && !pullDownEl.className.match('flip')) {
-								showPullDownElNow('flip');
-								this.scrollBy(0,-pullDownOffset, 0);	// Adjust scrolling position to match the change in pullDownEl's margin-top
-								//pullDownEl.querySelector('.pullDownLabel').innerHTML = 'Release to refresh...';
-							} else if (this.y < 0 && pullDownEl.className.match('flip')) { // User changes his mind...
-								hidePullDownEl(0,false);
-								this.scrollBy(0,pullDownOffset, 0);	// Adjust scrolling position to match the change in pullDownEl's margin-top
-								//pullDownEl.querySelector('.pullDownLabel').innerHTML = 'Pull down to refresh...';
-							}
-						}
-					});			
-			
-					me.myScroll.on('scrollEnd',function() {
-						if ((pullDownEl)&&(pullDownEl.className.match('flip'))) {
-							showPullDownElNow('loading');
-							$('.pullDownIcon').removeClass('icon-angle-down').addClass('icon-refresh');
-							//pullDownEl.querySelector('.pullDownLabel').innerHTML = 'Loading...';
-							pullDownActionHandler(this);	// Execute custom function (ajax call?)
-						}
-						if (scrollStartPos=-1000) {
-							// If scrollStartPos=-1000: Recalculate the true value of "hasVerticalScroll" as it may have been
-							// altered in 'scroll' to enable pull-to-refresh/load when the content fits the screen...
-							this.hasVerticalScroll = this.options.scrollY && this.maxScrollY < 0;
-						}
-					});
-			
-				}
-				window.addEventListener('load', function() {init()}, false);
-			};
-			
-			myScroll = new IScrollPullUpDown('infowindow-content',{
-				probeType:2,
-				mouseWheel:false,
-				scrollbars:true,
-				fadeScrollbars:true,
-				interactiveScrollbars:false
-			},pullDownAction);
-
-/*
-	myScroll.on('scrollStart', function () {
-		scroll_in_progress = true;
-	});
-	myScroll.on('scroll', function () {
-		console.log('scroll');
+		//window.addEventListener('load', function() {
+		    new FastClick(document.body);
+		//}, false);
 		
-		scroll_in_progress = true;
+		// put this here for android, does that work on iOS?
+		geo = window.geo || {};
+		geo.onMapMove = {};
 		
-		//if ($('#wrapper ul > li').length >= items_per_page) {
-			if (this.y >= 5 && pullDownEl && !pullDownEl.className.match('flip')) {
-				pullDownEl.className = 'pullDown flip';
-				//pullDownEl.querySelector('.pullDownLabel').innerHTML = 'Release to refresh';
-				this.minScrollY = 0;
-			} else if (this.y <= 5 && pullDownEl && pullDownEl.className.match('flip')) {
-				pullDownEl.className = 'pullDown';
-				//pullDownEl.querySelector('.pullDownLabel').innerHTML = 'Pull down to refresh';
-				this.minScrollY = pullDownOffset;
-			}
-			
-			console.log(this.y);
-			pullActionDetect.check(0);
-			
-		//}
-	});
-	myScroll.on('scrollEnd', function () {
-		console.log('scroll ended');
-		setTimeout(function() {
-			scroll_in_progress = false;
-		}, 100);
-		//if ($('#wrapper ul > li').length >= items_per_page) {
-			if (pullDownEl && pullDownEl.className.match('flip')) {
-				pullDownEl.className = 'pullDown loading';
-				$('.pullDownIcon').removeClass('icon-angle-down').addClass('icon-refresh');
-				//pullDownEl.querySelector('.pullDownLabel').innerHTML = 'Loading...';
-				pullDownAction();
-				
-			}
-			// We let the momentum scroll finish, and if reached the end - loading the next page
-			pullActionDetect.check(0);
-		//}
-	});	
-*/
+		
 	
-	//}
+	//$(document).on('touchmove', function (ev) {ev.preventDefault();});
 	
-	//myScrollInit();
-
-	
-/*
-	myScroll = new IScroll('#infowindow-content', {
-		useTransition: true,
-		scrollbars: true,
-		startY: pullDownOffset,
-		onRefresh: function () {
-				pullDownEl.className = '';
-				//pullDownEl.querySelector('.pullDownLabel').innerHTML = 'Pull down to refresh...';
-			
-		},
-		onScrollMove: function () {
-			if (this.y > 5 && !pullDownEl.className.match('flip')) {
-				pullDownEl.className = 'flip';
-				//pullDownEl.querySelector('.pullDownLabel').innerHTML = 'Release to refresh...';
-				this.minScrollY = 0;
-			} else if (this.y < 5 && pullDownEl.className.match('flip')) {
-				pullDownEl.className = '';
-				//pullDownEl.querySelector('.pullDownLabel').innerHTML = 'Pull down to refresh...';
-				this.minScrollY = -pullDownOffset;
-			}
-		},
-		onScrollEnd: function () {
-			if (pullDownEl.className.match('flip')) {
-				pullDownEl.className = 'loading';
-				$('.pullDownIcon').removeClass('icon-angle-down').addClass('icon-refresh');
-				//pullDownEl.querySelector('.pullDownLabel').innerHTML = 'Loading...';				
-				refreshStopID = $('.stopTitle').attr('id');
-				//console.log(refreshStopID);
-				annotationTap(refreshStopID); 
-			}
-		}
-	});
-*/
-
-/*
-	analyticsSuccess = function() {
-		console.log('success');
-	}
-	
-	analyticsError = function() {
-		console.log('error');
-	}
-*/
-	//analytics.debugMode()
-	ga_storage._setAccount(google_analytics_key);
-	ga_storage._setDomain(google_analytics_domain);
 	/*
-if (device.platform == "iOS") {
-		window.GA.trackerWithTrackingId("UA-39138450-1");
-		window.GA.trackView("/index");
-	} else {
-		//$.mobile.defaultPageTransition="none";
-		 window.plugins.analytics.start(
-            function(){
-                window.plugins.analytics.trackPageView(
-                	"/index",
-					function(){
-                    	//console.log("Track: success");
-					},
-	                function(){
-	                    //console.log("Track: failure");
-	                }
-				);
-            },
-            
-            function(){
-                //console.log("Start: failure");
-            }
-		);
+	$('input').on('focus', function(){
+	    $('.header').css({position:'absolute'});
+	    $('.footer').css({position:'absolute'});
+	    $(window).scrollTop(0);    
+	});
+	$('input').on('blur', function(){
+	    $('.header').css({position:'fixed'});
+	    $('.footer').css({position:'fixed'});
+	});
+	*/
+		// Track basic JavaScript errors
+		
+		// Track AJAX errors (jQuery API)
+		$(document).ajaxError(function(e, request, settings, thrownError) {
+			ga_storage._trackEvent('Ajax error', settings.url, "Status: " + request.status + ", Status Text: " + request.statusText + ", Response Text: " + request.responseText + ", Error Thrown: " + thrownError + ", Headers: " + request.getAllResponseHeaders());
+		});
+	
+		gmaps_directions_initialize();
+		
+		
+		
+		cordova.plugins.Keyboard.hideKeyboardAccessoryBar(true);
+		
+		$('form').submit(function() {
+			if ($(this).attr('id') == 'directions_form') {
+				if ($('#directions_start_wrap .filter').val() != '' && $('#directions_end_wrap .filter').val() != '') {
+					cordova.plugins.Keyboard.close();
+					
+					$('#directions_start_wrap .filter, #directions_end_wrap .filter').blur();
+					
+					if (typeof(directions_routes_scroll) == 'undefined') {
+						directions_routes_scroll = new IScroll('#directions_routes', {useTransition: true, scrollbars: true, 
+					mouseWheel:false,
+					fadeScrollbars:true,
+					interactiveScrollbars:false });
+					}
+					
+					get_directions($('#directions_start_wrap .filter').val(), $('#directions_end_wrap .filter').val());
+				} else if ($('#directions_start_wrap .filter').val() == '') {
+					$('#directions_start_wrap .filter').focus();
+					cordova.plugins.Keyboard.show();
+				} else {
+					$('#directions_end_wrap .filter').focus();
+					cordova.plugins.Keyboard.show();
+				}
+			} else {
+				cordova.plugins.Keyboard.close();
+			}
+			
+			return false;
+		});
+		
+		// from here for scrolling divs on older android: http://chris-barr.com/2010/05/scrolling_a_overflowauto_element_on_a_touch_screen_device/
+		if (device.platform != "iOS" && parseInt(device.version) < 3) {
+			isTouchDevice = function(){
+				try{
+					document.createEvent("TouchEvent");
+					return true;
+				}catch(e){
+					return false;
+				}
+			}
+			
+			touchScroll = function(id){
+				if(isTouchDevice()){ //if touch events exist...
+					var el=document.getElementById(id);
+					var scrollStartPos=0;
+			 
+					document.getElementById(id).addEventListener("touchstart", function(event) {
+						scrollStartPos=this.scrollTop+event.touches[0].pageY;
+						event.preventDefault();
+					},false);
+			 
+					document.getElementById(id).addEventListener("touchmove", function(event) {
+						this.scrollTop=scrollStartPos-event.touches[0].pageY;
+						event.preventDefault();
+					},false);
+				}
+			}
+		}
+		
+		
+		if (device.platform == "iOS" && parseInt(device.version) < 7) {
+			$('body').addClass(device.platform).addClass(device.platform + device.version).addClass('iOS6_or_lower');
+		} else {
+			$('body').addClass(device.platform).addClass(device.platform + device.version);
+		}
+	
+		$(document).on('touchmove', function (ev) {
+			//console.log($(ev.target));
+	        if (!$(ev.target).parents('ul').hasClass('scroll')) {
+	        	//console.log('div!');
+	            ev.preventDefault();
+	        }
+	    });
+	    
+	    //console.log('flag');
+	
+		homePage = $("#gps_map"),
+		currentPage = homePage,
+		pageHistory = [],
+		pageInitHistory = [],
+		global_pin_index = 0,
+		mapVisible = true;
+		
+		currentPage.css('display','block');
+		
+		currentPage.trigger({
+			type: "pagebeforeshow"
+		});
+		
+		currentPage.trigger({
+			type: "pageshow"
+		});
+		
+		currentPage.trigger({
+			type: "pageinit"
+		});
+		
+		pageInitHistory.push(currentPage.attr('id'));
+		
+		// set transition navigation flag that locks buttons until the page transition is finished
+	    transitionNavigationFlag = false;
+	    
+		$('.icon').click(function(e) {
+			e.preventDefault();
+			
+			if (!transitionNavigationFlag) {
+				if ($(this).attr('href') != '#' && $(this).attr('href') != '#back') {
+				
+					if ($(this).attr('href') != $(currentPage).attr('id')) {
+						pageHistory.push('#' + currentPage.attr('id'));
+					}
+					
+					if ($(this).attr('href') != '#gps_map') {
+						slidePageFrom($(this).attr('href'), 'right'); 
+					} else {
+						slidePageFrom($(this).attr('href'), 'left'); 
+					}
+				
+				} else if ($(this).attr('href') == '#back') {
+					
+					slidePageFrom(pageHistory[pageHistory.length - 1], 'left'); 
+					
+					if (pageHistory[pageHistory.length - 1] != $(currentPage).attr('id')) {
+						pageHistory.pop();
+					}
+				}
+			}
+		});
+		
+		
+		// pull to refresh from http://cubiq.org/dropbox/iscroll4/examples/pull-to-refresh/
+	
+	/*
+		pullDownEl = document.getElementById('pullDown');
+		pullDownOffset = $(pullDownEl).outerHeight();
+		var scroll_in_progress = false;
+	*/
+		
+		function pullDownAction(theScroller) {	
+			$('#pullDown').removeClass('scrolledUp');		
+					refreshStopID = $('.stopTitle').attr('id');
+					//console.log(refreshStopID);
+					annotationTap(refreshStopID); 
+				}
+	
+		
+		//myScrollInit = function() {
+			var IScrollPullUpDown = function (wrapperName,iScrollConfig,pullDownActionHandler) {
+				//console.log('IScrollPullUpDown start');
+					var iScrollConfig,pullDownActionHandler,pullDownEl,pullDownOffset,scrollStartPos;
+					var pullThreshold=35;
+					me=this;
+					
+				
+					function showPullDownElNow(className) {
+						// Shows pullDownEl with a given className
+						pullDownEl.style.transitionDuration='';
+						pullDownEl.style.marginTop='';
+						pullDownEl.className = 'pullDown '+className;
+					}
+					var hidePullDownEl = function (time,refresh) {
+						// Hides pullDownEl
+						pullDownEl.style.transitionDuration=(time>0?time+'ms':'');
+						pullDownEl.style.marginTop='';
+						pullDownEl.className = 'pullDown scrolledUp';
+				
+						// If refresh==true, refresh again after time+10 ms to update iScroll's "scroller.offsetHeight" after the pull-down-bar is really hidden...
+						// Don't refresh when the user is still dragging, as this will cause the content to jump (i.e. don't refresh while dragging)
+						if (refresh) setTimeout(function(){me.myScroll.refresh();},time+10);
+					}
+				
+					function init() {
+						//console.log('init');
+						var wrapperObj = document.querySelector('#'+wrapperName);
+						var scrollerObj = wrapperObj.children[0];
+				
+						if (pullDownActionHandler) {
+							// If a pullDownActionHandler-function is supplied, add a pull-down bar at the top and enable pull-down-to-refresh.
+							// (if pullDownActionHandler==null this iScroll will have no pull-down-functionality)
+							pullDownEl=document.createElement('div');
+							pullDownEl.className='pullDown scrolledUp';
+							pullDownEl.id='pullDown';
+							pullDownEl.innerHTML='<span class="pullDownIcon icon-angle-down center full"></span>';
+							scrollerObj.insertBefore(pullDownEl, scrollerObj.firstChild);
+							//pullDownEl = document.querySelector('#'+wrapperName + '.pullDown')
+							pullDownOffset = pullDownEl.offsetHeight;
+						}
+				
+						me.myScroll = new IScroll(wrapperObj,iScrollConfig);
+						
+						//console.log('iscroll!');
+						//console.log(myScroll);
+				
+						me.myScroll.on('refresh',function() {
+							if ((pullDownEl)&&(pullDownEl.className.match('loading'))) {
+								//pullDownEl.querySelector('.pullDownLabel').innerHTML = 'Pull down to refresh...';
+								if (this.y>=0) {
+									// The pull-down-bar is fully visible:
+									// Hide it with a simple 250ms animation
+									hidePullDownEl(250,true);
+				
+								} else if (this.y>-pullDownOffset) {
+									// The pull-down-bar is PARTLY visible:
+									// Set up a shorter animation to hide it
+				
+									// Firt calculate a new margin-top for pullDownEl that matches the current scroll position
+									pullDownEl.style.marginTop=this.y+'px';
+				
+									// CSS-trick to force webkit to render/update any CSS-changes immediately: Access the offsetHeight property...
+									pullDownEl.offsetHeight;
+				
+									// Calculate the animation time (shorter, dependant on the new distance to animate) from here to completely 'scrolledUp' (hidden)
+									// Needs to be done before adjusting the scroll-positon (if we want to read this.y)
+									var animTime=(250*(pullDownOffset+this.y)/pullDownOffset);
+				
+									// Set scroll positon to top
+									// (this is the same as adjusting the scroll postition to match the exact movement pullDownEl made due to the change of margin-top above, so the content will not "jump")
+									this.scrollTo(0,0,0);
+				
+									// Hide pullDownEl with the new (shorter) animation (and reset the inline style again).
+									setTimeout(function() {	// Do this in a new thread to avoid glitches in iOS webkit (will make sure the immediate margin-top change above is rendered)...
+										hidePullDownEl(animTime,true);
+									},0);
+				
+								} else {
+									// The pull-down-bar is completely off screen:
+									// Hide it immediately
+									hidePullDownEl(0,true);
+									// And adjust the scroll postition to match the exact movement pullDownEl made due to change of margin-top above, so the content will not "jump"
+									this.scrollBy(0,pullDownOffset,0);
+								}
+							}
+						});
+				
+						me.myScroll.on('scrollStart',function() {
+							scrollStartPos=this.y; // Store the scroll starting point to be able to track movement in 'scroll' below
+						});
+							
+						me.myScroll.on('scroll',function() {
+							if (pullDownEl) {
+								if((scrollStartPos==0)&&(this.y==0)) {
+									// 'scroll' called, but scroller is not moving!
+									// Probably because the content inside wrapper is small and fits the screen, so drag/scroll is disabled by iScroll
+									
+									// Fix this by a hack: Setting "myScroll.hasVerticalScroll=true" tricks iScroll to believe
+									// that there is a vertical scrollbar, and iScroll will enable dragging/scrolling again...
+									this.hasVerticalScroll=true;
+									
+									// Set scrollStartPos to -1000 to be able to detect this state later...
+									scrollStartPos=-1000;
+								} else if ((scrollStartPos==-1000) && 
+									         (((!pullDownEl.className.match('flip'))&&(this.y<0)) ||
+													  ((!pullDownEl)&&(this.y>0)))) {
+									// Scroller was not moving at first (and the trick above was applied), but now it's moving in the wrong direction.
+									// I.e. the user is either scrolling up while having no "pull-up-bar",
+									// or scrolling down while having no "pull-down-bar" => Disable the trick again and reset values...
+									this.hasVerticalScroll=false;
+									scrollStartPos=0;
+									this.scrollBy(0,-this.y, 0);	// Adjust scrolling position to undo this "invalid" movement
+								}
+							}
+					
+							if (pullDownEl) {
+								if (this.y > pullDownOffset+pullThreshold && !pullDownEl.className.match('flip')) {
+									showPullDownElNow('flip');
+									this.scrollBy(0,-pullDownOffset, 0);	// Adjust scrolling position to match the change in pullDownEl's margin-top
+									//pullDownEl.querySelector('.pullDownLabel').innerHTML = 'Release to refresh...';
+								} else if (this.y < 0 && pullDownEl.className.match('flip')) { // User changes his mind...
+									hidePullDownEl(0,false);
+									this.scrollBy(0,pullDownOffset, 0);	// Adjust scrolling position to match the change in pullDownEl's margin-top
+									//pullDownEl.querySelector('.pullDownLabel').innerHTML = 'Pull down to refresh...';
+								}
+							}
+						});			
+				
+						me.myScroll.on('scrollEnd',function() {
+							if ((pullDownEl)&&(pullDownEl.className.match('flip'))) {
+								showPullDownElNow('loading');
+								$('.pullDownIcon').removeClass('icon-angle-down').addClass('icon-refresh');
+								//pullDownEl.querySelector('.pullDownLabel').innerHTML = 'Loading...';
+								pullDownActionHandler(this);	// Execute custom function (ajax call?)
+							}
+							if (scrollStartPos=-1000) {
+								// If scrollStartPos=-1000: Recalculate the true value of "hasVerticalScroll" as it may have been
+								// altered in 'scroll' to enable pull-to-refresh/load when the content fits the screen...
+								this.hasVerticalScroll = this.options.scrollY && this.maxScrollY < 0;
+							}
+						});
+				
+					}
+					//console.log('init start');
+					init();
+				};
+				//console.log('myscroll start');
+				myScroll = new IScrollPullUpDown('infowindow-content',{
+					probeType:2,
+					mouseWheel:false,
+					scrollbars:true,
+					fadeScrollbars:true,
+					interactiveScrollbars:false
+				},pullDownAction);
+				
+				
+	
+	/*
+		myScroll.on('scrollStart', function () {
+			scroll_in_progress = true;
+		});
+		myScroll.on('scroll', function () {
+			console.log('scroll');
+			
+			scroll_in_progress = true;
+			
+			//if ($('#wrapper ul > li').length >= items_per_page) {
+				if (this.y >= 5 && pullDownEl && !pullDownEl.className.match('flip')) {
+					pullDownEl.className = 'pullDown flip';
+					//pullDownEl.querySelector('.pullDownLabel').innerHTML = 'Release to refresh';
+					this.minScrollY = 0;
+				} else if (this.y <= 5 && pullDownEl && pullDownEl.className.match('flip')) {
+					pullDownEl.className = 'pullDown';
+					//pullDownEl.querySelector('.pullDownLabel').innerHTML = 'Pull down to refresh';
+					this.minScrollY = pullDownOffset;
+				}
+				
+				console.log(this.y);
+				pullActionDetect.check(0);
+				
+			//}
+		});
+		myScroll.on('scrollEnd', function () {
+			console.log('scroll ended');
+			setTimeout(function() {
+				scroll_in_progress = false;
+			}, 100);
+			//if ($('#wrapper ul > li').length >= items_per_page) {
+				if (pullDownEl && pullDownEl.className.match('flip')) {
+					pullDownEl.className = 'pullDown loading';
+					$('.pullDownIcon').removeClass('icon-angle-down').addClass('icon-refresh');
+					//pullDownEl.querySelector('.pullDownLabel').innerHTML = 'Loading...';
+					pullDownAction();
+					
+				}
+				// We let the momentum scroll finish, and if reached the end - loading the next page
+				pullActionDetect.check(0);
+			//}
+		});	
+	*/
+		
+		//}
+		
+		//myScrollInit();
+	
+		
+	/*
+		myScroll = new IScroll('#infowindow-content', {
+			useTransition: true,
+			scrollbars: true,
+			startY: pullDownOffset,
+			onRefresh: function () {
+					pullDownEl.className = '';
+					//pullDownEl.querySelector('.pullDownLabel').innerHTML = 'Pull down to refresh...';
+				
+			},
+			onScrollMove: function () {
+				if (this.y > 5 && !pullDownEl.className.match('flip')) {
+					pullDownEl.className = 'flip';
+					//pullDownEl.querySelector('.pullDownLabel').innerHTML = 'Release to refresh...';
+					this.minScrollY = 0;
+				} else if (this.y < 5 && pullDownEl.className.match('flip')) {
+					pullDownEl.className = '';
+					//pullDownEl.querySelector('.pullDownLabel').innerHTML = 'Pull down to refresh...';
+					this.minScrollY = -pullDownOffset;
+				}
+			},
+			onScrollEnd: function () {
+				if (pullDownEl.className.match('flip')) {
+					pullDownEl.className = 'loading';
+					$('.pullDownIcon').removeClass('icon-angle-down').addClass('icon-refresh');
+					//pullDownEl.querySelector('.pullDownLabel').innerHTML = 'Loading...';				
+					refreshStopID = $('.stopTitle').attr('id');
+					//console.log(refreshStopID);
+					annotationTap(refreshStopID); 
+				}
+			}
+		});
+	*/
+	
+	/*
+		analyticsSuccess = function() {
+			console.log('success');
+		}
+		
+		analyticsError = function() {
+			console.log('error');
+		}
+	*/
+		//analytics.debugMode()
+		ga_storage._setAccount(google_analytics_key);
+		ga_storage._setDomain(google_analytics_domain);
+		/*
+	if (device.platform == "iOS") {
+			window.GA.trackerWithTrackingId("UA-39138450-1");
+			window.GA.trackView("/index");
+		} else {
+			//$.mobile.defaultPageTransition="none";
+			 window.plugins.analytics.start(
+	            function(){
+	                window.plugins.analytics.trackPageView(
+	                	"/index",
+						function(){
+	                    	//console.log("Track: success");
+						},
+		                function(){
+		                    //console.log("Track: failure");
+		                }
+					);
+	            },
+	            
+	            function(){
+	                //console.log("Start: failure");
+	            }
+			);
+			
+			navigator.splashscreen.hide();
+		}
+	*/
+		
+		deviceReadyFlag = true;
+		//console.log('deviceready');
+		
+		// add an on resume event to call an autorefresh if the app becomes active again...
+		document.addEventListener("resume", onResume, false);
+	
+		
+	    
+	    showMap();
+	
+	    
+	    mapHeight = $('html').height() - $('.header').height() - $('.footer').height(); // changed for android, does this work on ios?
+	    //console.log(mapHeight);
+	    mapOffsetTop = $('.header').height(); // changed for android, does this work on ios?
+	    
+	    //if (device.platform != "iOS") {
+			mapOptions = {
+		        //buttonCallback: "cbMapCallback",
+		        height: mapHeight,
+		        diameter: 400,
+		        offsetTop: mapOffsetTop, // changed for android, does this work on ios?
+		        lat: 38.8897,
+		        lon: -77.0089
+		    };
+		    
+		    mapKit.setMapData(mapSuccess, mapError, mapOptions);
+		        
+		//} 
+		
+		//used for locally simulating local storage, comment out when not needed for debugging
+		//favoritesStorage = '';
+		
+		// prevent some things from being scrollable
+		//$(document).delegate('.ui-footer', 'touchmove', false);
+		//$(document).delegate('.ui-header', 'touchmove', false);
+		
+		//('#infowindow').popup({ history: false });
+	
+		//console.log(device.model);
+		// initialize a global pin array to store all pins onscreen
+		pins = [];
+	
+		currentLatitude = mapOptions.lat;
+		currentLongitude = mapOptions.lon;
+		currentRadius = 400;
+		
+		currlocsuccess = 0;
+		
+		//needed to prevent weird android flickering
+		
+		/*
+	if (device.platform != "iOS") {
+			pageFlash = false;
+			$.mobile.changePage( "#infowindow", { transition: "none"} );
+			$.mobile.changePage( "#gps_map", { transition: "none"} );
+		}
+	*/
+	
+	
+		
+		pageFlash = true;
+	
+		
+	    
+	    // get current position (which also shows nearby stops)
+		navigator.geolocation.getCurrentPosition(onCurrentLocationSuccess, onCurrentLocationError, { maximumAge: 60000, timeout: 20000, enableHighAccuracy: true });
+		
+		// this needs to be in deviceReady so as not to make weird this website needs access to your location notices in the app...
+		$(document).on('pageinit', '#gps_map', function() {
+			
+			if (deviceReadyFlag = true) {
+				//console.log('getting location...');
+				navigator.geolocation.getCurrentPosition(onCurrentLocationSuccess, onCurrentLocationError, { maximumAge: 60000, timeout: 20000, enableHighAccuracy: true });
+			}
+			
+		});
+		
+		var mc = new Hammer(document.getElementById('body'));
+		// listen to events...
+		mc.on("swiperight", function(ev) {
+		    slidePageFrom(pageHistory[pageHistory.length - 1], 'left'); 
+			
+			if (pageHistory[pageHistory.length - 1] != $(currentPage).attr('id')) {
+				pageHistory.pop();
+			} 
+		});
+		
+		document.addEventListener("backbutton", onBackButton, false);
 		
 		navigator.splashscreen.hide();
+		
+		permissions_ran_flag = true;
 	}
-*/
-	
-	deviceReadyFlag = true;
-	//console.log('deviceready');
-	
-	// add an on resume event to call an autorefresh if the app becomes active again...
-	document.addEventListener("resume", onResume, false);
-
-	
-    
-    showMap();
-
-    
-    mapHeight = $('html').height() - $('.header').height() - $('.footer').height(); // changed for android, does this work on ios?
-    //console.log(mapHeight);
-    mapOffsetTop = $('.header').height(); // changed for android, does this work on ios?
-    
-    //if (device.platform != "iOS") {
-		mapOptions = {
-	        //buttonCallback: "cbMapCallback",
-	        height: mapHeight,
-	        diameter: 400,
-	        offsetTop: mapOffsetTop, // changed for android, does this work on ios?
-	        lat: 38.8897,
-	        lon: -77.0089
-	    };
-	    
-	    mapKit.setMapData(mapSuccess, mapError, mapOptions);
-	        
-	//} 
-	
-	//used for locally simulating local storage, comment out when not needed for debugging
-	//favoritesStorage = '';
-	
-	// prevent some things from being scrollable
-	//$(document).delegate('.ui-footer', 'touchmove', false);
-	//$(document).delegate('.ui-header', 'touchmove', false);
-	
-	//('#infowindow').popup({ history: false });
-
-	//console.log(device.model);
-	// initialize a global pin array to store all pins onscreen
-	pins = [];
-
-	currentLatitude = mapOptions.lat;
-	currentLongitude = mapOptions.lon;
-	currentRadius = 400;
-	
-	currlocsuccess = 0;
-	
-	//needed to prevent weird android flickering
-	
-	/*
-if (device.platform != "iOS") {
-		pageFlash = false;
-		$.mobile.changePage( "#infowindow", { transition: "none"} );
-		$.mobile.changePage( "#gps_map", { transition: "none"} );
-	}
-*/
-
-
-	
-	pageFlash = true;
-
-	
-    
-    // get current position (which also shows nearby stops)
-	navigator.geolocation.getCurrentPosition(onCurrentLocationSuccess, onCurrentLocationError, { maximumAge: 60000, timeout: 20000, enableHighAccuracy: true });
-	
-	// this needs to be in deviceReady so as not to make weird this website needs access to your location notices in the app...
-	$(document).on('pageinit', '#gps_map', function() {
-		
-		if (deviceReadyFlag = true) {
-			//console.log('getting location...');
-			navigator.geolocation.getCurrentPosition(onCurrentLocationSuccess, onCurrentLocationError, { maximumAge: 60000, timeout: 20000, enableHighAccuracy: true });
-		}
-		
-	});
-	
-	var mc = new Hammer(document.getElementById('body'));
-	// listen to events...
-	mc.on("swiperight", function(ev) {
-	    slidePageFrom(pageHistory[pageHistory.length - 1], 'left'); 
-		
-		if (pageHistory[pageHistory.length - 1] != $(currentPage).attr('id')) {
-			pageHistory.pop();
-		} 
-	});
-	
-	document.addEventListener("backbutton", onBackButton, false);
-	
-	navigator.splashscreen.hide();
 //console.log('now6');
     
 }
