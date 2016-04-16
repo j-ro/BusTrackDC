@@ -1297,7 +1297,9 @@ getCirculatorStops = function(latitude,longitude,radius) {
 				 if (ajaxCirculatorCount == 8) {
 					//console.log('marker time!');
 					//console.log('marker circ stops from getcirculatorstopsJSON/getcirculatorLineStops');
-					markerCirculatorStops(currentLatitude,currentLongitude, .01 , .01);
+					setTimeout(function() {
+						markerCirculatorStops(currentLatitude,currentLongitude, .01 , .01);
+					}, 2000);
 				 }
 		 
 				
@@ -1635,7 +1637,7 @@ markerCirculatorStopPoints = function(data) {
 					} else {
 						var type = "Circulator Stop #";
 					}
-					obj.snippet = type + object.route + '|' + object.tag;
+					obj.snippet = obj.snippet + '&stops=' + object.route + '|' + object.tag;
 					//console.log(obj.snippet);
 				}
 			}
@@ -3220,7 +3222,7 @@ latPlusDelta = parseFloat(latitude) + parseFloat(latitudeDelta);
 	if (circulatorData) {
 		//console.log('start loop');
 		$.each(circulatorData, function(i, object) {
-		
+			
 			//console.log('data lat=' + object.lat + ' data lon=' + object.lon);
 			
 			// make sure the pin is in view, if not, we don't want to marker it just yet
@@ -3242,16 +3244,17 @@ latPlusDelta = parseFloat(latitude) + parseFloat(latitudeDelta);
 				pins = $.map(pins, function(obj) {
 					//this works better, we're seeing the missing stops, but stops that are actually the same have slightly different lat/lon, so we get double pins, and thus no index match here
 					if ((obj.snippet.indexOf('Circulator Stop #') != -1 || obj.snippet.indexOf('Streetcar Stop #') != -1) && (parseFloat(obj.lat) + .00009 > object.lat && parseFloat(obj.lat) - .00009 < object.lat) && (parseFloat(obj.lon) + .00009 > object.lon && parseFloat(obj.lon) - .00009 < object.lon)) {
-						//console.log(obj.snippet);
-						//console.log(object.route + '|' + object.tag);
-						//console.log(obj.snippet.indexOf(object.route + '|' + object.tag));
+						
+/*
+						if (object.tag == 'k19th_e') {
+							console.log('pins');
+							console.log(obj.snippet);
+							console.log(object.route + '|' + object.tag);
+							console.log(obj.snippet.indexOf(object.route + '|' + object.tag));
+						}
+*/
 						if (obj.snippet.indexOf(object.route + '|' + object.tag) == -1) {
-							if (object.route == 'h_route') {
-								var type = "Streetcar Stop #";
-							} else {
-								var type = "Circulator Stop #";
-							}
-							obj.snippet = type + object.route + '|' + object.tag;
+							obj.snippet = obj.snippet + '&stops=' + object.route + '|' + object.tag;
 							//console.log(obj.snippet);
 						}
 					}
@@ -3260,19 +3263,29 @@ latPlusDelta = parseFloat(latitude) + parseFloat(latitudeDelta);
 				});
 				
 				newCirculatorPins = $.map(newCirculatorPins, function(obj) {
+/*
+					console.log('circulator start');
+					console.log(obj);
+					console.log(object);
+*/
 					//this works better, we're seeing the missing stops, but stops that are actually the same have slightly different lat/lon, so we get double pins, and thus no index match here
 					if ((obj.snippet.indexOf('Circulator Stop #') != -1 || obj.snippet.indexOf('Streetcar Stop #') != -1) && (parseFloat(obj.lat) + .00009 > object.lat && parseFloat(obj.lat) - .00009 < object.lat) && (parseFloat(obj.lon) + .00009 > object.lon && parseFloat(obj.lon) - .00009 < object.lon)) {
 						//console.log(obj.snippet);
 						//console.log(object.route + '|' + object.tag);
 						//console.log(obj.snippet.indexOf(object.route + '|' + object.tag));
+/*
+						if (object.tag == 'k19th_e') {
+							console.log('circulator');
+							console.log(obj.snippet);
+							console.log(object.route + '|' + object.tag);
+							console.log(obj.snippet.indexOf(object.route + '|' + object.tag));
+						}
+*/
 						if (obj.snippet.indexOf(object.route + '|' + object.tag) == -1) {
-							if (object.route == 'h_route') {
-								var type = "Streetcar Stop #";
-							} else {
-								var type = "Circulator Stop #";
+							obj.snippet = obj.snippet + '&stops=' + object.route + '|' + object.tag;
+							if (object.tag == 'k19th_e') {
+							  console.log(obj.snippet);
 							}
-							obj.snippet = type + object.route + '|' + object.tag;
-							//console.log(obj.snippet);
 						}
 					}
 					
