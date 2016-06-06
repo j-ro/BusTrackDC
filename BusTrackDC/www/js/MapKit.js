@@ -43,7 +43,6 @@
 			} else {
 				cordovaRef.exec(success, error, 'MapKit', 'showMap', [this.options]);
 			}
-			
 		},
 
 		addMapPins: function(success, error, pins) {

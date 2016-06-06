@@ -28,6 +28,7 @@ body {
     -webkit-touch-callout: none;                /* prevent callout to copy image, etc when tap to hold */
     -webkit-text-size-adjust: none;             /* prevent webkit from resizing text to fit */
     -webkit-user-select: none;                  /* prevent copy paste, to allow, change 'none' to 'text' */
+    font-size: 17px;
 }
 
 body.Android {
@@ -167,7 +168,7 @@ body {
 }
 
 .icon {
-	font-size: 1.5em;
+	font-size: 1.4em;
 	color: #ff3600;
 	width: 50px;
 	display: inline-block;
@@ -287,7 +288,7 @@ body {
 
 .topcoat-list__item p {
 	margin: -0.15rem 1rem 0 0.25rem !important;
-	font-size: 1rem;
+	font-size: 1.05rem;
 	overflow: hidden;
 	height: 1.4rem;
 	text-overflow: ellipsis;

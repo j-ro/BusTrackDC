@@ -16,7 +16,7 @@ function onBodyLoad() {
 //fastclick.js instantiation to get rid of 300ms delay on click events... DO WE NEED THIS AT ALL? WORKS FINE WITHOUT ON ANDROID
 
 function onBackButton() {
-	//console.log(pageHistory);
+	//console.log('back');
 	if (pageHistory.length == 0) {
 		navigator.app.exitApp();
 	} else {
@@ -2574,12 +2574,15 @@ markerStops = function(data) {
 				
 				// create a list of all possible routes at this stop
 				$.each(stops.Stops, function(i2, object2) {
+					//console.log(stopID);
+					//console.log(stops.Stops[i2].StopID);
 					if (stopID.toString().replace(/Metro Bus Stop #/,'') == stops.Stops[i2].StopID) {
 						stopIDfocus = stops.Stops[i2].StopID;
 						stopName = stops.Stops[i2].Name;
 						potentialRouteList = stops.Stops[i2].Routes;
 						stopLat = stops.Stops[i2].Lat;
 						stopLon = stops.Stops[i2].Lon;
+						//console.log(stopLat);
 						//potentialRouteList.push(routeID);
 					}
 					
@@ -3924,7 +3927,7 @@ function parse_directions(data) {
 				
 		$('.google_maps').click(function() {
 			//console.log('click');
-			document.removeEventListener("backbutton", onBackButton, false);
+			//document.removeEventListener("backbutton", onBackButton, false);
 			//window.location.href('http://maps.google.com/maps?saddr=' + start + '&daddr=' + end + '&directionsmode=transit');
 		});
 	} else {
@@ -4755,7 +4758,7 @@ function device_permissions_granted() {
 				pageHistory.pop();
 			} 
 		});
-		
+		//console.log('backbutton');
 		document.addEventListener("backbutton", onBackButton, false);
 		
 		navigator.splashscreen.hide();
